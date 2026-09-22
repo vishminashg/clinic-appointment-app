@@ -1,5 +1,11 @@
 const Doctor = require('../models/Doctor');
 
+const parseAvailableDays = (availableDays) => {
+  if (Array.isArray(availableDays)) return availableDays;
+  if (typeof availableDays === 'string' && availableDays.length > 0) return availableDays.split(',');
+  return [];
+};
+
 // Create a new doctor
 const createDoctor = async (req, res) => {
   try {
@@ -14,7 +20,7 @@ const createDoctor = async (req, res) => {
       specialization,
       bio,
       consultationFee,
-      availableDays: availableDays ? availableDays.split(',') : [],
+      availableDays: parseAvailableDays(availableDays),
       profileImage: req.file ? `/uploads/${req.file.filename}` : ''
     });
 
@@ -63,7 +69,7 @@ const updateDoctor = async (req, res) => {
     doctor.bio = bio || doctor.bio;
     doctor.consultationFee = consultationFee || doctor.consultationFee;
     if (availableDays) {
-      doctor.availableDays = availableDays.split(',');
+      doctor.availableDays = parseAvailableDays(availableDays);
     }
     if (req.file) {
       doctor.profileImage = `/uploads/${req.file.filename}`;

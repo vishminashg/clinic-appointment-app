@@ -1,4 +1,31 @@
 const Doctor = require('../models/Doctor');
+const User = require('../models/User');
+const { isCalendarDate } = require('../utils/appointment-date');
+
+async function updateScheduleAndAccount(doctor, { availableDates, accountEmail }) {
+  if (availableDates !== undefined) {
+    const dates = typeof availableDates === 'string'
+      ? (availableDates ? availableDates.split(',') : [])
+      : availableDates;
+    if (!Array.isArray(dates) || !dates.every(isCalendarDate)) {
+      return 'Choose valid dates from the calendar';
+    }
+    doctor.availableDates = [...new Set(dates)].sort();
+  }
+  if (accountEmail !== undefined) {
+    if (typeof accountEmail !== 'string') return 'Enter an existing doctor login email';
+    const email = accountEmail.trim();
+    if (!email) {
+      doctor.accountId = undefined;
+    } else {
+      const user = await User.findOne({ email }).select('isAdmin');
+      if (!user || user.isAdmin) return 'Enter the email of an existing account without admin access';
+      const linked = await Doctor.exists({ accountId: user._id, _id: { $ne: doctor._id } });
+      if (linked) return 'That account is already linked to a doctor';
+      doctor.accountId = user._id;
+    }
+  }
+}
 
 const parseAvailableDays = (availableDays) => {
   if (Array.isArray(availableDays)) return availableDays;
@@ -24,9 +51,13 @@ const createDoctor = async (req, res) => {
       profileImage: req.file ? `/uploads/${req.file.filename}` : ''
     });
 
+    const problem = await updateScheduleAndAccount(newDoctor, req.body);
+    if (problem) return res.status(400).json({ message: problem });
     await newDoctor.save();
-    res.status(201).json(newDoctor);
+    const { accountId, ...publicDoctor } = newDoctor.toObject();
+    res.status(201).json(publicDoctor);
   } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: 'That account is already linked to a doctor' });
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -77,9 +108,13 @@ const updateDoctor = async (req, res) => {
       doctor.profileImage = `/uploads/${req.file.filename}`;
     }
 
+    const problem = await updateScheduleAndAccount(doctor, req.body);
+    if (problem) return res.status(400).json({ message: problem });
     await doctor.save();
-    res.status(200).json(doctor);
+    const { accountId, ...publicDoctor } = doctor.toObject();
+    res.status(200).json(publicDoctor);
   } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: 'That account is already linked to a doctor' });
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Doctor = require('../models/Doctor');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -65,7 +66,8 @@ const loginUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        isAdmin: user.isAdmin === true
+        isAdmin: user.isAdmin === true,
+        isDoctor: !user.isAdmin && Boolean(await Doctor.exists({ accountId: user._id }))
       }
     });
   } catch (error) {
@@ -80,7 +82,8 @@ const getProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.status(200).json(user);
+    const isDoctor = !user.isAdmin && Boolean(await Doctor.exists({ accountId: user._id }));
+    res.status(200).json({ ...user.toObject(), isDoctor });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

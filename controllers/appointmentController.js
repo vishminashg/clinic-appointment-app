@@ -1,5 +1,6 @@
 const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
+const User = require('../models/User');
 const { isObjectIdOrHexString } = require('mongoose');
 
 const ownedAppointment = (req) => ({ _id: req.params.id, patientId: req.userId });
@@ -8,9 +9,19 @@ const ownedAppointment = (req) => ({ _id: req.params.id, patientId: req.userId }
 const createAppointment = async (req, res) => {
   try {
     const { doctorId, appointmentDate, timeSlot, reason } = req.body;
+    const patient = await User.findById(req.userId).select('isAdmin');
+    if (!patient) return res.status(401).json({ message: 'Sign in to book an appointment' });
+    if (patient.isAdmin) return res.status(403).json({ message: 'Only patients can book appointments' });
 
     if (!doctorId || !appointmentDate || !timeSlot) {
       return res.status(400).json({ message: 'doctorId, appointmentDate, and timeSlot are required' });
+    }
+    const parsedDate = new Date(appointmentDate);
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    if (typeof appointmentDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(appointmentDate) ||
+        !Number.isFinite(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== appointmentDate ||
+        appointmentDate < today) {
+      return res.status(400).json({ message: 'Choose a valid appointment date today or later' });
     }
 
     const doctor = await Doctor.findById(doctorId);

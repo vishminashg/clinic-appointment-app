@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import { COLORS, SPACING, RADIUS } from '../constants/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -23,11 +25,10 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     if (!validate()) return;
-
     setLoading(true);
     try {
       await api.post('/auth/register', { name, email, password });
-      Alert.alert('Success', 'Account created! Please log in.');
+      Alert.alert('Account created', 'You can now log in with your new account.');
       router.replace('/');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Something went wrong. Please try again.';
@@ -38,56 +39,53 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Create your account</Text>
+        <Text style={styles.subtitle}>Book appointments with trusted doctors in minutes</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Full Name"
-        placeholderTextColor="#999"
-        value={name}
-        onChangeText={setName}
-      />
-      {errors.name ? <Text style={styles.error}>{errors.name}</Text> : null}
+        <View style={styles.inputWrapper}>
+          <Ionicons name="person-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+          <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor={COLORS.textMuted} value={name} onChangeText={setName} />
+        </View>
+        {errors.name ? <Text style={styles.error}>{errors.name}</Text> : null}
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor="#999"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-      {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
+        <View style={styles.inputWrapper}>
+          <Ionicons name="mail-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+          <TextInput style={styles.input} placeholder="Email" placeholderTextColor={COLORS.textMuted} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+        </View>
+        {errors.email ? <Text style={styles.error}>{errors.email}</Text> : null}
 
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        placeholderTextColor="#999"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
+        <View style={styles.inputWrapper}>
+          <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+          <TextInput style={styles.input} placeholder="Password" placeholderTextColor={COLORS.textMuted} value={password} onChangeText={setPassword} secureTextEntry />
+        </View>
+        {errors.password ? <Text style={styles.error}>{errors.password}</Text> : null}
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register</Text>}
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+          {loading ? <ActivityIndicator color={COLORS.white} /> : <Text style={styles.buttonText}>Create Account</Text>}
+        </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.replace('/')}>
-        <Text style={styles.link}>Already have an account? Log in</Text>
-      </TouchableOpacity>
-    </View>
+        <TouchableOpacity onPress={() => router.replace('/')} style={styles.linkWrapper}>
+          <Text style={styles.link}>Already have an account? <Text style={styles.linkBold}>Log in</Text></Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#fff' },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 32, textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 14, marginBottom: 4, fontSize: 16 },
-  error: { color: 'red', fontSize: 13, marginBottom: 12 },
-  button: { backgroundColor: '#2563eb', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 12 },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  link: { color: '#2563eb', textAlign: 'center', marginTop: 20 },
+  flex: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, justifyContent: 'center', padding: SPACING.lg },
+  title: { fontSize: 26, fontWeight: '700', color: COLORS.textDark, textAlign: 'center' },
+  subtitle: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', marginTop: SPACING.xs, marginBottom: SPACING.xl },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.md, paddingHorizontal: SPACING.md, marginBottom: SPACING.xs },
+  inputIcon: { marginRight: SPACING.sm },
+  input: { flex: 1, paddingVertical: 14, fontSize: 16, color: COLORS.textDark },
+  error: { color: COLORS.danger, fontSize: 13, marginBottom: SPACING.sm, marginLeft: SPACING.xs },
+  button: { backgroundColor: COLORS.primary, paddingVertical: 16, borderRadius: RADIUS.md, alignItems: 'center', marginTop: SPACING.md },
+  buttonText: { color: COLORS.white, fontWeight: '700', fontSize: 16 },
+  linkWrapper: { marginTop: SPACING.lg, alignItems: 'center' },
+  link: { color: COLORS.textMuted, fontSize: 14 },
+  linkBold: { color: COLORS.primary, fontWeight: '700' },
 });

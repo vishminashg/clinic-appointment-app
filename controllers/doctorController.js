@@ -1,5 +1,6 @@
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
+const { isObjectIdOrHexString } = require('mongoose');
 const { isCalendarDate } = require('../utils/appointment-date');
 
 async function updateScheduleAndAccount(doctor, { availableDates, accountEmail }) {
@@ -133,4 +134,15 @@ const deleteDoctor = async (req, res) => {
   }
 };
 
-module.exports = { createDoctor, getAllDoctors, getDoctorById, updateDoctor, deleteDoctor };
+async function getDoctorLogin(req, res) {
+  if (!isObjectIdOrHexString(req.params.id)) {
+    return res.status(400).json({ message: 'Invalid doctor ID' });
+  }
+  const doctor = await Doctor.findById(req.params.id)
+    .select('+accountId')
+    .populate('accountId', 'email');
+  if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+  res.json({ email: doctor.accountId?.email ?? null });
+}
+
+module.exports = { createDoctor, getAllDoctors, getDoctorById, updateDoctor, deleteDoctor, getDoctorLogin };

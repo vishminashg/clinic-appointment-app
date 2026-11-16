@@ -1,6 +1,7 @@
 const Doctor = require('../models/Doctor');
 const User = require('../models/User');
-const { isObjectIdOrHexString } = require('mongoose');
+const { connection, isObjectIdOrHexString } = require('mongoose');
+const bcrypt = require('bcrypt');
 const { isCalendarDate } = require('../utils/appointment-date');
 
 async function updateScheduleAndAccount(doctor, { availableDates, accountEmail }) {
@@ -37,7 +38,7 @@ const parseAvailableDays = (availableDays) => {
 // Create a new doctor
 const createDoctor = async (req, res) => {
   try {
-    const { name, specialization, bio, consultationFee, availableDays } = req.body;
+    const { name, specialization, bio, consultationFee, availableDays, availableDates, accountEmail, accountPassword } = req.body;
 
     if (!name || !specialization || !consultationFee) {
       return res.status(400).json({ message: 'Name, specialization, and consultation fee are required' });
@@ -52,14 +53,40 @@ const createDoctor = async (req, res) => {
       profileImage: req.file ? `/uploads/${req.file.filename}` : ''
     });
 
-    const problem = await updateScheduleAndAccount(newDoctor, req.body);
+    const creatingLogin = accountPassword !== undefined;
+    const problem = await updateScheduleAndAccount(newDoctor, {
+      availableDates,
+      accountEmail: creatingLogin ? undefined : accountEmail
+    });
     if (problem) return res.status(400).json({ message: problem });
-    await newDoctor.save();
+    if (creatingLogin) {
+      const email = typeof accountEmail === 'string' ? accountEmail.trim() : '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: 'Enter a valid doctor email' });
+      }
+      if (typeof accountPassword !== 'string' || accountPassword.trim().length < 8 ||
+          Buffer.byteLength(accountPassword, 'utf8') > 72) {
+        return res.status(400).json({ message: 'Use a password with at least 8 characters and no more than 72 UTF-8 bytes' });
+      }
+      await newDoctor.validate();
+      const password = await bcrypt.hash(accountPassword, 10);
+      await connection.transaction(async (session) => {
+        const [account] = await User.create([{ name: newDoctor.name, email, password }], { session });
+        newDoctor.accountId = account._id;
+        await newDoctor.save({ session });
+      });
+    } else {
+      await newDoctor.save();
+    }
     const { accountId, ...publicDoctor } = newDoctor.toObject();
     res.status(201).json(publicDoctor);
   } catch (error) {
+    if (error.code === 11000 && error.keyPattern?.email) {
+      return res.status(409).json({ message: 'This email already has an account. Choose Link existing login to use it.' });
+    }
     if (error.code === 11000) return res.status(409).json({ message: 'That account is already linked to a doctor' });
-    res.status(500).json({ message: 'Server error', error: error.message });
+    if (error.name === 'ValidationError') return res.status(400).json({ message: 'Check the doctor profile fields' });
+    res.status(500).json({ message: 'Could not save doctor. Please try again.' });
   }
 };
 

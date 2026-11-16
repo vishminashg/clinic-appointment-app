@@ -66,9 +66,11 @@ const updateDoctor = async (req, res) => {
 
     doctor.name = name || doctor.name;
     doctor.specialization = specialization || doctor.specialization;
-    doctor.bio = bio || doctor.bio;
+    if (bio !== undefined) {
+      doctor.bio = bio;
+    }
     doctor.consultationFee = consultationFee || doctor.consultationFee;
-    if (availableDays) {
+    if (availableDays !== undefined) {
       doctor.availableDays = parseAvailableDays(availableDays);
     }
     if (req.file) {

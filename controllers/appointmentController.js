@@ -1,5 +1,8 @@
 const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
+const { isObjectIdOrHexString } = require('mongoose');
+
+const ownedAppointment = (req) => ({ _id: req.params.id, patientId: req.userId });
 
 // Create a new appointment (book)
 const createAppointment = async (req, res) => {
@@ -56,7 +59,10 @@ const getMyAppointments = async (req, res) => {
 // Get one appointment by ID
 const getAppointmentById = async (req, res) => {
   try {
-    const appointment = await Appointment.findById(req.params.id)
+    if (!isObjectIdOrHexString(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid appointment ID' });
+    }
+    const appointment = await Appointment.findOne(ownedAppointment(req))
       .populate('doctorId', 'name specialization consultationFee profileImage');
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found' });
@@ -77,7 +83,10 @@ const updateAppointmentStatus = async (req, res) => {
       return res.status(400).json({ message: `Status must be one of: ${validStatuses.join(', ')}` });
     }
 
-    const appointment = await Appointment.findById(req.params.id);
+    if (!isObjectIdOrHexString(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid appointment ID' });
+    }
+    const appointment = await Appointment.findOne(ownedAppointment(req));
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
@@ -94,11 +103,13 @@ const updateAppointmentStatus = async (req, res) => {
 // Delete an appointment
 const deleteAppointment = async (req, res) => {
   try {
-    const appointment = await Appointment.findById(req.params.id);
+    if (!isObjectIdOrHexString(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid appointment ID' });
+    }
+    const appointment = await Appointment.findOneAndDelete(ownedAppointment(req));
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
-    await appointment.deleteOne();
     res.status(200).json({ message: 'Appointment deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
